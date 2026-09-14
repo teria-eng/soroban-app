@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>そろばん育成アプリ - 先生用完全版（名前をつけて保存対応版）</title>
+<style>
+:root {
+  --primary: #d97706;
+  --primary-hover: #b45309;
+  --bg-color: #f8fafc;
+  --card-bg: #ffffff;
+  --text-main: #1e293b;
+  --text-sub: #64748b;
+  --border-color: #e2e8f0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  padding: 16px;
+  background: var(--bg-color);
+  color: var(--text-main);
+}
+
+.screen {
+  display: none;
+  background: var(--card-bg);
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  max-width: 600px;
+  margin: 0 auto;
+}
+.screen.active { display: block; }
+
+h2, h3 { margin-top: 0; color: var(--text-main); }
+
+button {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  padding: 12px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  width: 100%;
+  margin: 6px 0;
+  transition: background 0.2s;
+}
+button:hover { background: var(--primary-hover); }
+
+input, select, textarea {
+  padding: 12px;
+  font-size: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text-main);
+}
+
+.card {
+  background: #f8fafc;
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-container {
+  border: 1px solid var(--border-color); border-radius: 8px; background: #f8fafc;
+  height: 220px; overflow-y: auto; padding: 12px; margin-bottom: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.chat-bubble { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.4; word-break: break-all; }
+.chat-bubble.student { background: #dbeafe; color: #1e3a8a; align-self: flex-start; }
+.chat-bubble.teacher { background: #e2e8f0; color: #334155; align-self: flex-end; }
+.chat-img { max-width: 100%; border-radius: 6px; margin-top: 4px; display: block; }
+.chat-file-link { color: inherit; font-weight: bold; text-decoration: underline; display: inline-block; margin-top: 4px; }
+
+/* 折りたたみ用スタイル */
+.collapsible-box {
+  display: none;
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 8px;
+}
+.collapsible-box.open {
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<!-- 1. ログイン画面 -->
+<div id="teacher-auth-screen" class="screen active">
+  <h2 style="color:#b45309; text-align:center; margin-bottom: 20px;">🔐 先生用ダッシュボード</h2>
+  
+  <label style="font-size:13px; font-weight:bold; color:#0369a1;">学校・塾ID：</label>
+  <input type="text" id="input-teacher-school-id" value="default-school" placeholder="塾IDを入力">
+  
+  <label style="font-size:13px; font-weight:bold; color:#b45309;">パスワード：</label>
+  <input type="password" id="input-teacher-pass" placeholder="パスワードを入力 (初期: teacher123)">
+  
+  <button id="btn-do-teacher-login" type="button">ログイン</button>
+
+  <!-- 切り替え用のリンク風ボタンたち -->
+  <div style="display: flex; justify-content: space-between; margin-top: 16px; font-size: 12px; flex-wrap: wrap; gap: 4px;">
+    <button type="button" id="btn-toggle-create" style="background: none; color: #0284c7; width: auto; padding: 4px; margin: 0; font-weight: normal; text-decoration: underline;">+ 新規塾を作る</button>
+    <button type="button" id="btn-toggle-reset-pass" style="background: none; color: #64748b; width: auto; padding: 4px; margin: 0; font-weight: normal; text-decoration: underline;">パスワード忘れ</button>
+    <button type="button" id="btn-toggle-reset-name" style="background: none; color: #b45309; width: auto; padding: 4px; margin: 0; font-weight: normal; text-decoration: underline;">🏫 塾名・合言葉で復旧</button>
+  </div>
+
+  <!-- ✨ 新規塾ID作成エリア -->
+  <div id="box-create-school" class="collapsible-box" style="background:#fef3c7; border:1px solid #f59e0b;">
+    <div style="font-weight:bold; font-size:13px; color:#b45309; margin-bottom:4px;">✨ 新しい塾の登録（紐付け用データの作成）</div>
+    <div style="font-size:11px; color:#92400e; margin-bottom:8px;">ここで登録する「塾名」と「秘密の言葉」は、将来IDを忘れた時の復旧・引き継ぎに必要になります。</div>
+    
+    <label style="font-size:12px; font-weight:bold; color:#b45309; display:block; margin-bottom:2px;">新しく作る塾ID：</label>
+    <input type="text" id="input-create-school-id" placeholder="〇〇-juku" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <label style="font-size:12px; font-weight:bold; color:#b45309; display:block; margin-bottom:2px;">正式な塾の名前：</label>
+    <input type="text" id="input-create-school-name" placeholder="〇〇塾" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <label style="font-size:12px; font-weight:bold; color:#b45309; display:block; margin-bottom:2px;">先生の秘密の言葉（合言葉）：</label>
+    <input type="password" id="input-create-secret" placeholder="任意の合言葉を設定" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <label style="font-size:12px; font-weight:bold; color:#b45309; display:block; margin-bottom:2px;">パスワード：</label>
+    <input type="password" id="input-create-school-pass" placeholder="ログイン用パスワードを入力" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <button id="btn-create-new-school" type="button" style="background:#0284c7; margin:0; padding:8px; font-size:13px;">新規塾を登録してログイン</button>
+  </div>
+
+  <!-- 🔄 パスワードを忘れたときの再設定エリア -->
+  <div id="box-reset-pass" class="collapsible-box" style="background:#f1f5f9; border:1px solid #cbd5e1;">
+    <div style="font-weight:bold; font-size:13px; color:#475569; margin-bottom:8px;">🔄 パスワードの再設定</div>
+    
+    <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:2px;">既存の塾ID：</label>
+    <input type="text" id="input-reset-pass-id" placeholder="登録済みの塾IDを入力" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <label style="font-size:12px; font-weight:bold; color:#475569; display:block; margin-bottom:2px;">新しいパスワード：</label>
+    <input type="password" id="input-reset-pass-val" placeholder="新しいパスワードを入力" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <button id="btn-reset-password-only" type="button" style="background:#64748b; margin:0; padding:8px; font-size:13px;">パスワードを再設定してログイン</button>
+  </div>
+
+  <!-- 🏫 塾名＋秘密の合言葉から再設定・変更するエリア -->
+  <div id="box-reset-name" class="collapsible-box" style="background:#fff7ed; border:1px solid #fdba74;">
+    <div style="font-weight:bold; font-size:13px; color:#c2410c; margin-bottom:4px;">🏫 塾名と合言葉によるID・パスワードの復旧</div>
+    <div style="font-size:11px; color:#9a3412; margin-bottom:8px;">登録時に設定した「塾名」と「秘密の言葉」が一致した場合のみ、データを新しいIDへ安全に引き継げます。</div>
+    
+    <label style="font-size:12px; font-weight:bold; color:#c2410c; display:block; margin-bottom:2px;">登録した塾の名前：</label>
+    <input type="text" id="input-find-school-name" placeholder="〇〇塾" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <label style="font-size:12px; font-weight:bold; color:#c2410c; display:block; margin-bottom:2px;">設定した秘密の言葉：</label>
+    <input type="password" id="input-secret-passphrase" placeholder="秘密の言葉を入力" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <label style="font-size:12px; font-weight:bold; color:#c2410c; display:block; margin-bottom:2px;">新しく使いたい塾ID：</label>
+    <input type="text" id="input-new-id-val" placeholder="新しくするIDを入力" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <label style="font-size:12px; font-weight:bold; color:#c2410c; display:block; margin-bottom:2px;">新しくしたいパスワード：</label>
+    <input type="password" id="input-new-id-pass" placeholder="新しくするパスワードを入力" style="margin-bottom:8px; font-size:13px; padding:8px;">
+
+    <button id="btn-reset-by-school-name" type="button" style="background:#ea580c; margin:0; padding:8px; font-size:13px;">合言葉で認証してデータを引き継ぐ</button>
+  </div>
+</div>
+
+<!-- 2. ダッシュボード画面 -->
+<div id="teacher-dashboard-screen" class="screen">
+  <h2 style="color:#b45309;">👨‍🏫 所属生徒の管理</h2>
+  <p style="font-size:13px; color:var(--text-sub);">現在の塾ID: <strong id="teacher-current-school"></strong></p>
+  
+  <!-- 💾 バックアップ・復元エリア -->
+  <div style="background:#f0fdf4; border:1px solid #22c55e; padding:12px; border-radius:8px; margin-bottom:15px;">
+    <div style="font-weight:bold; font-size:13px; color:#15803d; margin-bottom:6px;">💾 データのバックアップ（消失防止）</div>
+    <div style="font-size:11px; color:#166534; margin-bottom:8px;">スマホの変更やトラブルに備え、定期的にデータをファイルとして保存しておけます。</div>
+    <div style="display:flex; gap:8px;">
+      <button id="btn-export-backup" type="button" style="background:#16a34a; margin:0; padding:8px; font-size:12px;">📥 データをファイルに保存</button>
+      <label style="background:#0284c7; color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; text-align:center; flex:1; margin:0; display:flex; align-items:center; justify-content:center;">
+        📤 バックアップから復元
+        <input type="file" id="input-import-backup" accept=".json" style="display:none;">
+      </label>
+    </div>
+  </div>
+
+  <!-- ⚙️ 塾ID・パスワード変更エリア -->
+  <div style="background:#fef3c7; border:1px solid #f59e0b; padding:12px; border-radius:8px; margin-bottom:15px;">
+    <div style="font-weight:bold; font-size:13px; color:#b45309; margin-bottom:8px;">⚙️ 塾IDとパスワードの変更</div>
+    
+    <label style="font-size:12px; font-weight:bold; color:#b45309; display:block; margin-bottom:2px;">新しい塾ID：</label>
+    <div style="display:flex; gap:6px; margin-bottom:8px;">
+      <input type="text" id="input-new-school-id" placeholder="新しい塾IDを入力" style="margin-bottom:0; flex:1; font-size:13px; padding:8px;">
+      <button id="btn-change-school-id" type="button" style="width:110px; margin:0; padding:8px; font-size:13px; background:#0284c7;">ID変更</button>
+    </div>
+
+    <label style="font-size:12px; font-weight:bold; color:#b45309; display:block; margin-bottom:2px;">新しいパスワード：</label>
+    <div style="display:flex; gap:6px;">
+      <input type="password" id="input-new-password" placeholder="新しいパスワードを入力" style="margin-bottom:0; flex:1; font-size:13px; padding:8px;">
+      <button id="btn-change-password" type="button" style="width:110px; margin:0; padding:8px; font-size:13px;">パス変更</button>
+    </div>
+  </div>
+
+  <div id="teacher-student-list" style="max-height: 220px; overflow-y: auto; margin-bottom: 15px;"></div>
+  <button id="btn-teacher-logout" type="button" style="background:#64748b;">🚪 ログアウト</button>
+</div>
+
+<!-- 3. 個別生徒カルテ（月別ボタン切替対応） -->
+<div id="teacher-detail-screen" class="screen">
+  <h2 id="teacher-detail-title" style="color:#b45309;">生徒カルテ</h2>
+  <div style="background:#f8fafc; border:1px solid var(--border-color); padding:10px; border-radius:8px; margin-bottom:12px;" id="teacher-detail-status"></div>
+
+  <div style="margin-bottom:12px;">
+    <div style="font-weight:bold; margin-bottom:4px;">📅 月別 学習きろく</div>
+    <div id="teacher-month-buttons" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;"></div>
+    <div id="teacher-monthly-logs" style="max-height: 130px; overflow-y: auto;"></div>
+  </div>
+
+  <div style="margin-bottom:12px;">
+    <div style="font-weight:bold; margin-bottom:4px;">💬 生徒とのチャット（返信・ファイル送信）</div>
+    <div class="chat-container" id="teacher-chat-box"></div>
+    
+    <!-- ファイル選択＆メッセージ入力エリア -->
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <div style="display:flex; gap:6px; align-items:center;">
+        <input type="file" id="input-teacher-file" accept="image/*,application/pdf" style="margin-bottom:0; font-size:12px; padding:6px;">
+      </div>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="input-teacher-chat-msg" placeholder="返信メッセージを入力..." style="margin-bottom:0; flex:1;">
+        <button id="btn-teacher-send-chat" type="button" style="width:80px; margin:0;">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="btn-teacher-detail-back" type="button" style="background:#64748b;">⬅️ 戻る</button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentSchoolId = 'default-school';
+    let viewingStudentId = null;
+
+    function getStorageKey(sId) { return 'soroban_students_' + (sId || currentSchoolId); }
+    function getPasswordKey(sId) { return 'soroban_teacher_pass_' + (sId || currentSchoolId); }
+    function getMetaKey(sId) { return 'soroban_meta_' + (sId || currentSchoolId); }
+    function getStudents() { try { return JSON.parse(localStorage.getItem(getStorageKey()) || '[]'); } catch(e) { return []; } }
+    
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    // アコーディオン（開閉）の切り替え処理（相互排他）
+    const boxCreate = document.getElementById('box-create-school');
+    const boxResetPass = document.getElementById('box-reset-pass');
+    const boxResetName = document.getElementById('box-reset-name');
+
+    function closeAllBoxes() {
+        boxCreate.classList.remove('open');
+        boxResetPass.classList.remove('open');
+        boxResetName.classList.remove('open');
+    }
+
+    document.getElementById('btn-toggle-create').onclick = () => {
+        let isOpen = boxCreate.classList.contains('open');
+        closeAllBoxes();
+        if (!isOpen) boxCreate.classList.add('open');
+    };
+
+    document.getElementById('btn-toggle-reset-pass').onclick = () => {
+        let isOpen = boxResetPass.classList.contains('open');
+        closeAllBoxes();
+        if (!isOpen) boxResetPass.classList.add('open');
+    };
+
+    document.getElementById('btn-toggle-reset-name').onclick = () => {
+        let isOpen = boxResetName.classList.contains('open');
+        closeAllBoxes();
+        if (!isOpen) boxResetName.classList.add('open');
+    };
+
+    // 通常ログイン処理
+    document.getElementById('btn-do-teacher-login').onclick = () => {
+        let sId = document.getElementById('input-teacher-school-id').value.trim();
+        let pass = document.getElementById('input-teacher-pass').value;
+        if (!sId) { alert('塾IDを入力してください'); return; }
+
+        let savedPass = localStorage.getItem(getPasswordKey(sId));
+        if (!savedPass) {
+            savedPass = (sId === 'default-school') ? 'teacher123' : '';
+        }
+
+        if (savedPass && pass !== savedPass) {
+            alert('パスワードが違います');
+            return;
+        }
+
+        currentSchoolId = sId;
+        document.getElementById('teacher-current-school').textContent = currentSchoolId;
+        document.getElementById('input-new-school-id').value = '';
+        document.getElementById('input-new-password').value = '';
+        renderStudentList();
+        showScreen('teacher-dashboard-screen');
+    };
+
+    // ✨ 新規塾ID作成処理
+    document.getElementById('btn-create-new-school').onclick = () => {
+        let newId = document.getElementById('input-create-school-id').value.trim();
+        let schoolName = document.getElementById('input-create-school-name').value.trim();
+        let secretPassphrase = document.getElementById('input-create-secret').value.trim();
+        let newPass = document.getElementById('input-create-school-pass').value;
+
+        if (!newId) { alert('新しく作る塾IDを入力してください'); return; }
+        if (!schoolName) { alert('塾の名前を入力してください'); return; }
+        if (!secretPassphrase) { alert('秘密の言葉（合言葉）を入力してください'); return; }
+        if (!newPass) { alert('パスワードを入力してください'); return; }
+
+        let existingPass = localStorage.getItem(getPasswordKey(newId));
+        if (existingPass) {
+            if (!confirm(`塾ID「${newId}」は既に存在します。上書きしてよろしいですか？`)) return;
+        }
+
+        localStorage.setItem(getPasswordKey(newId), newPass);
+        localStorage.setItem(getMetaKey(newId), JSON.stringify({ schoolName: schoolName, secret: secretPassphrase }));
+        if (!localStorage.getItem(getStorageKey(newId))) {
+            localStorage.setItem(getStorageKey(newId), JSON.stringify([]));
+        }
+
+        currentSchoolId = newId;
+        document.getElementById('teacher-current-school').textContent = currentSchoolId;
+        
+        document.getElementById('input-create-school-id').value = '';
+        document.getElementById('input-create-school-name').value = '';
+        document.getElementById('input-create-secret').value = '';
+        document.getElementById('input-create-school-pass').value = '';
+        closeAllBoxes();
+        
+        renderStudentList();
+        showScreen('teacher-dashboard-screen');
+        alert(`新しい塾「${schoolName}（ID: ${currentSchoolId}）」を登録してログインしました！`);
+    };
+
+    // パスワード単体再設定処理
+    document.getElementById('btn-reset-password-only').onclick = () => {
+        let rId = document.getElementById('input-reset-pass-id').value.trim();
+        let rPass = document.getElementById('input-reset-pass-val').value;
+
+        if (!rId) { alert('再設定する塾IDを入力してください'); return; }
+        if (!rPass) { alert('新しいパスワードを入力してください'); return; }
+
+        if (!confirm(`塾ID「${rId}」のパスワードを再設定しますか？`)) return;
+
+        localStorage.setItem(getPasswordKey(rId), rPass);
+        if (!localStorage.getItem(getStorageKey(rId))) {
+            localStorage.setItem(getStorageKey(rId), JSON.stringify([]));
+        }
+
+        currentSchoolId = rId;
+        document.getElementById('teacher-current-school').textContent = currentSchoolId;
+        document.getElementById('input-reset-pass-id').value = '';
+        document.getElementById('input-reset-pass-val').value = '';
+        closeAllBoxes();
+
+        renderStudentList();
+        showScreen('teacher-dashboard-screen');
+        alert(`塾ID「${currentSchoolId}」のパスワードを再設定してログインしました！`);
+    };
+
+    // 🏫 登録された「塾名」と「秘密の言葉」を使ってID・パスワードを復旧する処理
+    document.getElementById('btn-reset-by-school-name').onclick = () => {
+        let schoolNameQuery = document.getElementById('input-find-school-name').value.trim();
+        let passphrase = document.getElementById('input-secret-passphrase').value.trim();
+        let newId = document.getElementById('input-new-id-val').value.trim();
+        let newPass = document.getElementById('input-new-id-pass').value;
+
+        if (!schoolNameQuery) { alert('登録した塾の名前を入力してください'); return; }
+        if (!passphrase) { alert('秘密の言葉を入力してください'); return; }
+        if (!newId) { alert('新しく使いたい塾IDを入力してください'); return; }
+        if (!newPass) { alert('新しく使いたいパスワードを入力してください'); return; }
+
+        let matchedOldId = null;
+        let matchedMeta = null;
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            if (key.startsWith('soroban_meta_')) {
+                try {
+                    let meta = JSON.parse(localStorage.getItem(key));
+                    if (meta && meta.schoolName === schoolNameQuery && meta.secret === passphrase) {
+                        matchedOldId = key.replace('soroban_meta_', '');
+                        matchedMeta = meta;
+                        break;
+                    }
+                } catch(e) {}
+            }
+        }
+
+        if (!matchedOldId) {
+            alert('入力された「塾の名前」または「秘密の言葉」が一致するデータが見つかりませんでした。');
+            return;
+        }
+
+        let studentsData = localStorage.getItem('soroban_students_' + matchedOldId);
+        
+        localStorage.setItem('soroban_teacher_pass_' + newId, newPass);
+        localStorage.setItem('soroban_meta_' + newId, JSON.stringify(matchedMeta));
+        localStorage.setItem('soroban_students_' + newId, studentsData || JSON.stringify([]));
+
+        if (matchedOldId !== newId) {
+            localStorage.removeItem('soroban_students_' + matchedOldId);
+            localStorage.removeItem('soroban_teacher_pass_' + matchedOldId);
+            localStorage.removeItem('soroban_meta_' + matchedOldId);
+        }
+
+        currentSchoolId = newId;
+        document.getElementById('teacher-current-school').textContent = currentSchoolId;
+        document.getElementById('input-find-school-name').value = '';
+        document.getElementById('input-secret-passphrase').value = '';
+        document.getElementById('input-new-id-val').value = '';
+        document.getElementById('input-new-id-pass').value = '';
+        closeAllBoxes();
+
+        renderStudentList();
+        showScreen('teacher-dashboard-screen');
+        alert(`「${schoolNameQuery}」のデータを合言葉で認証し、新しいID「${currentSchoolId}」に復旧・引き継ぎました！`);
+    };
+
+    // 📥 バックアップファイル書き出し機能（名前をつけて保存対応）
+    document.getElementById('btn-export-backup').onclick = () => {
+        // 現在の塾の正式な「塾名」をメタデータから取得を試みる
+        let defaultFileName = `soroban_backup_${currentSchoolId}`;
+        try {
+            let meta = JSON.parse(localStorage.getItem(getMetaKey()) || '{}');
+            if (meta && meta.schoolName) {
+                defaultFileName = `${meta.schoolName}_backup`;
+            }
+        } catch(e) {}
+
+        let dateStr = new Date().toISOString().slice(0, 10);
+        let suggestedName = `${defaultFileName}_${dateStr}`;
+
+        // ユーザーにファイル名を入力してもらうポップアップを表示
+        let userInputName = prompt("保存するファイル名を入力してください：", suggestedName);
+        if (userInputName === null) return; // キャンセルされた場合
+
+        let fileName = userInputName.trim();
+        if (!fileName) {
+            fileName = suggestedName; // 未入力の場合はデフォルト名を使う
+        }
+        // 拡張子 .json がついていなければ自動付与
+        if (!fileName.toLowerCase().endsWith('.json')) {
+            fileName += '.json';
+        }
+
+        let backupData = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            let key = localStorage.key(i);
+            if (key.startsWith('soroban_')) {
+                backupData[key] = localStorage.getItem(key);
+            }
+        }
+
+        let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+        let downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", fileName);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        alert(`ファイル「${fileName}」として保存しました！`);
+    };
+
+    // 📤 バックアップファイル読み込み（復元）機能
+    document.getElementById('input-import-backup').onchange = (event) => {
+        let file = event.target.files[0];
+        if (!file) return;
+
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let importedData = JSON.parse(e.target.result);
+                if (!confirm('既存のデータに上書きしてバックアップを復元しますか？')) {
+                    event.target.value = '';
+                    return;
+                }
+
+                for (let key in importedData) {
+                    if (key.startsWith('soroban_')) {
+                        localStorage.setItem(key, importedData[key]);
+                    }
+                }
+                alert('バックアップからの復元が完了しました！');
+                renderStudentList();
+            } catch (err) {
+                alert('ファイルの読み込みに失敗しました。正しいバックアップファイルを選択してください。');
+            }
+            event.target.value = '';
+        };
+        reader.readAsText(file);
+    };
+
+    document.getElementById('btn-change-school-id').onclick = () => {
+        let newId = document.getElementById('input-new-school-id').value.trim();
+        if (!newId) { alert('新しい塾IDを入力してください'); return; }
+        if (newId === currentSchoolId) { alert('現在と同じ塾IDです'); return; }
+        if (!confirm(`塾IDを「${currentSchoolId}」から「${newId}」に変更しますか？`)) return;
+
+        let studentsData = localStorage.getItem(getStorageKey(currentSchoolId));
+        let passData = localStorage.getItem(getPasswordKey(currentSchoolId)) || 'teacher123';
+        let metaData = localStorage.getItem(getMetaKey(currentSchoolId));
+
+        if (studentsData) localStorage.setItem(getStorageKey(newId), studentsData);
+        localStorage.setItem(getPasswordKey(newId), passData);
+        if (metaData) localStorage.setItem(getMetaKey(newId), metaData);
+
+        localStorage.removeItem(getStorageKey(currentSchoolId));
+        localStorage.removeItem(getPasswordKey(currentSchoolId));
+        localStorage.removeItem(getMetaKey(currentSchoolId));
+
+        currentSchoolId = newId;
+        document.getElementById('teacher-current-school').textContent = currentSchoolId;
+        document.getElementById('input-new-school-id').value = '';
+        renderStudentList();
+        alert(`塾IDを「${currentSchoolId}」に変更しました！`);
+    };
+
+    document.getElementById('btn-change-password').onclick = () => {
+        let newPass = document.getElementById('input-new-password').value;
+        if (!newPass) { alert('新しいパスワードを入力してください'); return; }
+        localStorage.setItem(getPasswordKey(currentSchoolId), newPass);
+        document.getElementById('input-new-password').value = '';
+        alert(`塾ID「${currentSchoolId}」のパスワードを変更しました！`);
+    };
+
+    document.getElementById('btn-teacher-logout').onclick = () => {
+        document.getElementById('input-teacher-pass').value = '';
+        showScreen('teacher-auth-screen');
+    };
+
+    function renderStudentList() {
+        let students = getStudents();
+        let container = document.getElementById('teacher-student-list');
+        if (students.length === 0) { container.innerHTML = '<p style="color:var(--text-sub);">生徒がいません。</p>'; return; }
+        container.innerHTML = students.map(s => `
+            <div class="card">
+                <div><strong>${s.baseChar || '🧒'} ${escapeHtml(s.nickname)}</strong><br><span style="font-size:12px; color:var(--text-sub);">EXP: ${s.exp || 0}</span></div>
+                <button class="btn-view" data-id="${s.id}" style="width:auto; padding:6px 12px; margin:0;">カルテ管理</button>
+            </div>
+        `).join('');
+
+        container.querySelectorAll('.btn-view').forEach(btn => {
+            btn.onclick = function() {
+                viewingStudentId = this.getAttribute('data-id');
+                openDetail(viewingStudentId);
+            };
+        });
+    }
+
+    function openDetail(id) {
+        let s = getStudents().find(item => item.id === id);
+        if (!s) return;
+        let plantLv = Math.floor((s.plantExp || 0) / 10) + 1;
+        document.getElementById('teacher-detail-title').textContent = `${s.nickname}さんのカルテ`;
+        document.getElementById('teacher-detail-status').innerHTML = `本名: ${escapeHtml(s.realname || '未設定')} / 累計EXP: <strong>${s.exp || 0}</strong> / 植物Lv: <strong>Lv.${plantLv}</strong>`;
+
+        renderMonthlyLogs(s.studyLogs || []);
+        renderChatBox(s);
+        showScreen('teacher-detail-screen');
+    }
+
+    function renderMonthlyLogs(logs) {
+        let btnContainer = document.getElementById('teacher-month-buttons');
+        let listContainer = document.getElementById('teacher-monthly-logs');
+        if (!logs || logs.length === 0) {
+            btnContainer.innerHTML = '';
+            listContainer.innerHTML = '<div style="color:var(--text-sub); padding:4px;">記録なし</div>';
+            return;
+        }
+
+        let groups = {};
+        logs.forEach(l => {
+            let monthKey = l.date ? l.date.substring(0, 7) : '日付不明';
+            if (!groups[monthKey]) groups[monthKey] = [];
+            groups[monthKey].push(l);
+        });
+
+        let months = Object.keys(groups).sort().reverse();
+        let activeMonth = months[0];
+
+        let drawButtons = function(cur) {
+            btnContainer.innerHTML = months.map(m => {
+                let isActive = m === cur;
+                let bg = isActive ? '#d97706' : '#e2e8f0';
+                let color = isActive ? '#fff' : '#1e293b';
+                let label = m === '日付不明' ? m : m.replace('-', '年') + '月';
+                return `<button type="button" class="btn-tm" data-m="${m}" style="background:${bg}; color:${color}; width:auto; padding:4px 8px; margin:0; font-size:12px;">${label} (${groups[m].length})</button>`;
+            }).join('');
+
+            btnContainer.querySelectorAll('.btn-tm').forEach(b => {
+                b.onclick = function() { drawButtons(this.getAttribute('data-m')); drawList(this.getAttribute('data-m')); };
+            });
+        };
+
+        let drawList = function(m) {
+            listContainer.innerHTML = (groups[m] || []).map(l => `<div style="padding:4px 6px; margin-bottom:3px; background:#fff; border:1px solid #e2e8f0; border-radius:4px; font-size:13px;"><strong style="color:#d97706;">[${escapeHtml(l.date)}]</strong> ${escapeHtml(l.content)}</div>`).join('');
+        };
+
+        drawButtons(activeMonth);
+        drawList(activeMonth);
+    }
+
+    function getChatKey(id) { return 'soroban_chats_' + currentSchoolId + '_' + id; }
+    
+    function renderChatBox(s) {
+        let msgs = JSON.parse(localStorage.getItem(getChatKey(s.id)) || '[]');
+        let container = document.getElementById('teacher-chat-box');
+        
+        container.innerHTML = msgs.map(m => {
+            let fileHtml = '';
+            if (m.fileData) {
+                if (m.fileType && m.fileType.startsWith('image/')) {
+                    fileHtml = `<img src="${m.fileData}" class="chat-img" alt="送信画像">`;
+                } else {
+                    fileHtml = `<a href="${m.fileData}" target="_blank" class="chat-file-link">📎 添付ファイル・PDFを開く</a>`;
+                }
+            }
+            let textHtml = m.text ? `<div>${escapeHtml(m.text)}</div>` : '';
+            return `<div class="chat-bubble ${m.sender}">${textHtml}${fileHtml}</div>`;
+        }).join('');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    document.getElementById('btn-teacher-send-chat').onclick = () => {
+        let input = document.getElementById('input-teacher-chat-msg');
+        let fileInput = document.getElementById('input-teacher-file');
+        let text = input.value.trim();
+        let file = fileInput.files[0];
+
+        if (!viewingStudentId) return;
+        if (!text && !file) {
+            alert('メッセージかファイルを入力してください');
+            return;
+        }
+
+        let msgs = JSON.parse(localStorage.getItem(getChatKey(viewingStudentId)) || '[]');
+
+        if (file) {
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                msgs.push({
+                    sender: 'teacher',
+                    text: text ? '【先生】 ' + text : '【先生】',
+                    fileData: e.target.result,
+                    fileType: file.type
+                });
+                localStorage.setItem(getChatKey(viewingStudentId), JSON.stringify(msgs));
+                input.value = andClear(input, fileInput);
+                let s = getStudents().find(item => item.id === viewingStudentId);
+                if (s) renderChatBox(s);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            msgs.push({
+                sender: 'teacher',
+                text: '【先生】 ' + text,
+                fileData: null,
+                fileType: null
+            });
+            localStorage.setItem(getChatKey(viewingStudentId), JSON.stringify(msgs));
+            input.value = '';
+            let s = getStudents().find(item => item.id === viewingStudentId);
+            if (s) renderChatBox(s);
+        }
+    };
+
+    function andClear(inp, fInp) { inp.value = ''; fInp.value = ''; return ''; }
+
+    document.getElementById('btn-teacher-detail-back').onclick = () => renderStudentList() || showScreen('teacher-dashboard-screen');
+    function escapeHtml(str) { return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+});
+</script>
+</body>
+</html>
