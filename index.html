@@ -1,0 +1,1366 @@
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>そろばん育成アプリ - 塾ID管理・完全分離版</title>
+
+<style>
+:root {
+  --primary:#4f46e5;
+  --primary-hover:#4338ca;
+  --success:#10b981;
+  --bg-color:#f8fafc;
+  --card-bg:#fff;
+  --text-main:#1e293b;
+  --text-sub:#64748b;
+  --border-color:#e2e8f0;
+}
+body {
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  margin:0;padding:16px;background:var(--bg-color);color:var(--text-main);
+}
+.screen {
+  display:none;background:var(--card-bg);padding:24px;border-radius:16px;
+  box-shadow:0 4px 12px rgba(0,0,0,.05);max-width:600px;margin:0 auto;
+}
+.screen.active{display:block}
+h2,h3{margin-top:0;color:var(--text-main)}
+button {
+  background:var(--primary);color:#fff;border:none;padding:12px 18px;
+  border-radius:8px;cursor:pointer;font-size:15px;font-weight:600;
+  width:100%;margin:6px 0;transition:background .2s;
+}
+button:hover{background:var(--primary-hover)}
+input,select,textarea {
+  padding:12px;font-size:15px;width:100%;box-sizing:border-box;
+  margin-bottom:12px;border:1px solid var(--border-color);
+  border-radius:8px;background:#fff;color:var(--text-main);
+}
+.card {
+  background:#f8fafc;padding:14px;border-radius:10px;margin-bottom:10px;
+  border:1px solid var(--border-color);display:flex;
+  justify-content:space-between;align-items:center;
+}
+.room-container {
+  position:relative;width:100%;height:280px;background:#fdfbf7;
+  border:4px solid #b48a60;border-radius:14px;overflow:hidden;margin-bottom:16px;
+}
+.room-wall {
+  position:absolute;top:0;left:0;right:0;height:60%;
+  background:#f5eedc;border-bottom:4px solid #d4b895;
+}
+.room-floor {
+  position:absolute;bottom:0;left:0;right:0;height:40%;background:#c39b73;
+}
+.room-window {
+  position:absolute;top:15px;left:25px;width:75px;height:65px;
+  background:#d4eaf7;border:4px solid #a67c52;
+}
+.room-door {
+  position:absolute;top:10px;right:25px;width:70px;height:130px;
+  background:#734e30;border:3px solid #4a311c;border-radius:4px 4px 0 0;
+}
+.room-rug {
+  position:absolute;bottom:15px;left:50%;transform:translateX(-50%);
+  width:100px;height:35px;background:#e1d3be;border-radius:20px;
+}
+.room-plant-display {
+  position:absolute;bottom:40px;right:30px;font-size:36px;
+}
+.room-character-display {
+  position:absolute;bottom:35px;left:50%;transform:translateX(-50%);font-size:45px;
+}
+.character-speech {
+  position:absolute;top:-30px;left:50%;transform:translateX(-50%);
+  background:#fff;border:1px solid var(--border-color);border-radius:8px;
+  padding:3px 8px;font-size:11px;white-space:nowrap;
+  box-shadow:0 2px 4px rgba(0,0,0,.05);
+}
+.tab-row{display:flex;gap:3px;margin-bottom:16px}
+.tab-row button {
+  background:#cbd5e1;color:#475569;font-size:12px;padding:8px 2px;
+  flex:1;margin:0;
+}
+.tab-row button.active-tab{background:var(--primary);color:#fff}
+.chat-container {
+  border:1px solid var(--border-color);border-radius:8px;background:#f8fafc;
+  height:220px;overflow-y:auto;padding:12px;margin-bottom:10px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.chat-bubble {
+  max-width:80%;padding:8px 12px;border-radius:10px;font-size:14px;
+  line-height:1.4;word-break:break-all;
+}
+.chat-bubble.student{background:#dbeafe;color:#1e3a8a;align-self:flex-end}
+.chat-bubble.teacher{background:#e2e8f0;color:#334155;align-self:flex-start}
+.big-display {
+  font-size:32px;font-weight:bold;text-align:center;color:var(--primary);margin:16px 0;
+}
+.rank-card {
+  background:#fff;border:1px solid var(--border-color);border-radius:10px;
+  padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;
+  justify-content:space-between;
+}
+.rank-card.top-1{border-color:#f59e0b;background:#fffbeb}
+.rank-card.top-2{border-color:#94a3b8;background:#f8fafc}
+.rank-card.top-3{border-color:#b45309;background:#fff7ed}
+.rank-num{font-weight:bold;font-size:18px;width:35px;text-align:center}
+.collapsible-box {
+  display:none;background:#f8fafc;border:1px solid var(--border-color);
+  border-radius:10px;padding:16px;margin-top:10px;margin-bottom:16px;
+}
+.collapsible-box.open{display:block}
+.record-buttons{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.record-buttons button{width:auto;margin:0;padding:7px 12px;font-size:12px}
+.record-edit-btn{background:#0284c7}
+.record-delete-btn{background:#ef4444}
+.record-question-btn{background:#7c3aed}
+
+/* 編集用カスタムモーダル */
+.modal-overlay {
+  display:none;position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.5);z-index:1000;
+  justify-content:center;align-items:center;padding:16px;
+}
+.modal-overlay.open{display:flex;}
+.modal-content {
+  background:#fff;padding:24px;border-radius:16px;width:100%;max-width:400px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.1);
+}
+
+.study-question-context {
+  display:none;background:#eff6ff;border:1px solid #93c5fd;
+  border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;
+}
+.chat-photo-input{display:none}
+.chat-photo-preview {
+  max-width:180px;max-height:180px;border-radius:8px;
+  margin-top:6px;display:block;
+}
+</style>
+</head>
+
+<body>
+
+<!-- 1. 生徒管理・ログイン -->
+<div id="auth-screen" class="screen active">
+<h2>🧮 そろばん育成アプリ</h2>
+
+<div style="display:flex;gap:10px;margin-bottom:20px;">
+<button id="btn-toggle-school" type="button"
+style="background:#0284c7;flex:1;margin:0;font-size:14px;">
+🏫 塾IDの登録・変更を開く
+</button>
+<button id="btn-toggle-register" type="button"
+style="background:var(--success);flex:1;margin:0;font-size:14px;">
+✨ 新しく登録するを開く
+</button>
+</div>
+
+<div id="school-box" class="collapsible-box"
+style="background:#e0f2fe;border-color:#7dd3fc;">
+<label style="font-size:13px;font-weight:bold;color:#0369a1;display:block;margin-bottom:6px;">
+学校・塾ID（スクールID）設定：
+</label>
+<input type="text" id="input-school-id" placeholder="例：school-001" value="default-school">
+<button id="btn-change-school" type="button" style="background:#0284c7;margin-bottom:0;">
+この塾IDに変更・決定
+</button>
+</div>
+
+<div id="register-box" class="collapsible-box"
+style="background:#f0fdf4;border-color:#86efac;">
+<h3 style="color:#15803d;font-size:16px;margin-bottom:12px;">✨ 新規生徒登録</h3>
+<input type="text" id="input-realname" placeholder="お名前（本名）">
+<input type="text" id="input-nickname" placeholder="ニックネーム">
+
+<label style="font-size:13px;font-weight:bold;color:var(--text-sub);">
+パートナーキャラクター：
+</label>
+<select id="input-select-char">
+<option value="🧒">🧒 こども（スタンダード）</option>
+<option value="👦">👦 男の子</option>
+<option value="👧">👧 女の子</option>
+<option value="🤖">🤖 ロボット</option>
+<option value="🐱">🐱 にゃんこ</option>
+</select>
+
+<label style="font-size:13px;font-weight:bold;color:var(--text-sub);">
+育てる植物・野菜：
+</label>
+<select id="input-select-plant">
+<option value="tomato">🍅 トマト</option>
+<option value="flower">🌻 ひまわり</option>
+<option value="fruit">🍓 いちご</option>
+<option value="green">🪴 観葉植物</option>
+</select>
+
+<button id="btn-register" type="button"
+style="background:var(--success);margin-bottom:0;">
+登録を完了してはじめる
+</button>
+</div>
+
+<h3>👥 生徒一覧（ログイン）</h3>
+<div id="student-list-box" style="max-height:220px;overflow-y:auto;"></div>
+</div>
+
+
+<!-- 2. メインルーム -->
+<div id="menu-screen" class="screen">
+<h2 id="welcome-msg" style="margin-bottom:12px;">お部屋</h2>
+
+<div class="room-container">
+<div class="room-wall">
+<div class="room-window"></div>
+<div class="room-door"></div>
+</div>
+<div class="room-floor"><div class="room-rug"></div></div>
+
+<div class="room-character-display" id="room-char-emoji">
+<div class="character-speech" id="room-char-speech">がんばろう！</div>🧒
+</div>
+<div class="room-plant-display" id="room-plant-emoji">🌱</div>
+</div>
+
+<div class="tab-row">
+<button type="button" class="active-tab" onclick="switchTab('home')">🏠 水やり</button>
+<button type="button" onclick="switchTab('record')">📖 きろく</button>
+<button type="button" onclick="switchTab('ranking')">👑 順位</button>
+<button type="button" onclick="switchTab('chat')">💬 チャット</button>
+<button type="button" onclick="switchTab('menu')">⚡ 特訓</button>
+</div>
+
+<!-- 水やり -->
+<div id="tab-content-home" class="tab-pane">
+<div style="background:#f0fdf4;border:2px dashed var(--success);padding:14px;border-radius:10px;">
+<div style="font-weight:bold;color:#047857;margin-bottom:8px;font-size:14px;">
+💧 自主勉をきろくして「水やり」しよう！
+</div>
+<input type="date" id="input-my-date" style="margin-bottom:6px;">
+<input type="text" id="input-my-content"
+placeholder="例：見取算 5ページ、九九の練習" style="margin-bottom:8px;">
+<button id="btn-save-study-log" type="button" style="background:var(--success);">
+🌱 記録を保存して水やりする！
+</button>
+</div>
+
+<div style="margin-top:15px;text-align:center;">
+<button id="btn-logout" type="button"
+style="background:#64748b;width:auto;padding:8px 16px;font-size:13px;">
+🚪 ログアウトして生徒選択へ戻る
+</button>
+</div>
+</div>
+
+<!-- 学習記録 -->
+<div id="tab-content-record" class="tab-pane" style="display:none;">
+<h3>📖 これまでの学習きろく</h3>
+<div id="study-log-list" style="max-height:300px;overflow-y:auto;"></div>
+</div>
+
+<!-- 順位 -->
+<div id="tab-content-ranking" class="tab-pane" style="display:none;">
+<h3>👑 同じ塾の友達ランキング（獲得EXP順）</h3>
+<div id="ranking-list" style="max-height:200px;overflow-y:auto;"></div>
+</div>
+
+<!-- チャット -->
+<div id="tab-content-chat" class="tab-pane" style="display:none;">
+<h3>💬 先生とのチャット</h3>
+<div id="chat-study-context" class="study-question-context"></div>
+<div class="chat-container" id="chat-box"></div>
+
+<div style="display:flex;gap:6px;margin-bottom:6px;">
+<input type="text" id="input-chat-msg"
+placeholder="メッセージを入力"
+style="margin-bottom:0;flex:1;">
+<button id="btn-send-chat" type="button"
+style="width:70px;margin:0;">
+送信
+</button>
+</div>
+
+<label for="chat-photo-input"
+style="display:block;background:#f1f5f9;border:1px solid #cbd5e1;
+border-radius:8px;padding:10px;text-align:center;cursor:pointer;font-size:14px;">
+📷 写真を添付する
+</label>
+<input type="file" id="chat-photo-input" class="chat-photo-input" accept="image/*">
+<div id="chat-photo-preview-box"></div>
+</div>
+
+<!-- 特訓 -->
+<div id="tab-content-menu" class="tab-pane" style="display:none;">
+<div style="display:flex;flex-direction:column;gap:6px;">
+<button id="btn-goto-free-read" type="button" style="background:#0284c7;">
+🧮 自由練習：読上算
+</button>
+<button id="btn-goto-free-anzan" type="button" style="background:#7c3aed;">
+🧠 自由練習：読上暗算
+</button>
+<button id="btn-goto-kuku" type="button" style="background:#d97706;">
+✖️ 九九特訓モード
+</button>
+<button id="btn-goto-exam-yomi" type="button" style="background:#059669;">
+🏆 本格検定：読上算モード
+</button>
+<button id="btn-goto-exam-anzan" type="button" style="background:#4f46e5;">
+🏆 本格検定：読上暗算モード
+</button>
+</div>
+</div>
+</div>
+
+
+<!-- 3. フリー練習設定 -->
+<div id="setup-screen" class="screen">
+<h2 id="setup-title">練習設定</h2>
+<label style="font-weight:bold;display:block;margin-bottom:6px;">桁数の設定（範囲）：</label>
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+<input type="number" id="input-min-digit" value="1" min="1" max="10" style="margin-bottom:0;text-align:center;">
+<span style="font-weight:bold;font-size:16px;">桁 〜</span>
+<input type="number" id="input-max-digit" value="2" min="1" max="10" style="margin-bottom:0;text-align:center;">
+<span style="font-weight:bold;font-size:16px;">桁</span>
+</div>
+<label style="font-weight:bold;display:block;margin-bottom:6px;">口数（数字の数）：</label>
+<input type="number" id="input-count" value="5" min="2" max="30">
+<button id="btn-start-free-play" type="button" style="background:#10b981;margin-top:10px;">練習スタート！</button>
+<button id="btn-setup-back" type="button" style="background:#6b7280;">もどる</button>
+</div>
+
+
+<!-- 4. 九九選択 -->
+<div id="kuku-select-screen" class="screen">
+<h2>✖️ 九九特訓モード</h2>
+<p style="color:#6b7280;font-size:14px;">鍛えたい段を選んで特訓しよう！</p>
+<label>段の選択：</label>
+<select id="kuku-dan-select">
+<option value="all">ランダム（全の段）</option>
+<option value="1">1の段</option>
+<option value="2">2の段</option>
+<option value="3">3の段</option>
+<option value="4">4の段</option>
+<option value="5">5の段</option>
+<option value="6">6の段</option>
+<option value="7">7の段</option>
+<option value="8">8の段</option>
+<option value="9">9の段</option>
+</select>
+<button id="btn-start-kuku-play" type="button" style="background:#10b981;margin-top:15px;">九九特訓スタート！</button>
+<button id="btn-kuku-back" type="button" style="background:#6b7280;">もどる</button>
+</div>
+
+
+<!-- 5. 九九プレイ -->
+<div id="kuku-play-screen" class="screen">
+<h2>✖️ 九九特訓中</h2>
+<div id="kuku-question-no" class="big-display">第1問 / 全10問</div>
+<div style="margin:20px 0;">
+<label id="kuku-display-text" style="font-size:24px;text-align:center;display:block;font-weight:bold;color:var(--primary);">3 × 4 = ?</label>
+<input type="number" id="input-kuku-answer" placeholder="答えを入力">
+</div>
+<button id="btn-kuku-submit" type="button" style="background:#10b981;">こたえる</button>
+<button id="btn-kuku-stop" type="button" style="background:#6b7280;">やめる</button>
+</div>
+
+
+<!-- 6. 本格検定選択 -->
+<div id="exam-select-screen" class="screen">
+<h2 id="exam-select-title">🏆 本格検定モード選択</h2>
+<p style="color:#6b7280;font-size:14px;">※ 挑戦したい桁数・口数のレベルを選ぼう！</p>
+<label>挑戦するレベル（コース）を選択：</label>
+<select id="exam-grade-select"></select>
+<button id="btn-start-exam" type="button" style="background:#10b981;margin-top:15px;">検定スタート！</button>
+<button id="btn-exam-back" type="button" style="background:#6b7280;">もどる</button>
+</div>
+
+
+<!-- 7. 自由練習プレイ -->
+<div id="free-play-screen" class="screen">
+<h2 id="free-play-title">練習中...</h2>
+<div id="free-question-no" class="big-display">第1問</div>
+<p style="text-align:center;color:#6b7280;">音声をきいて計算しよう</p>
+<button id="btn-free-repeat" type="button">もう一度読み上げる</button>
+<button id="btn-free-answer" type="button" style="background:#10b981;">こたえを見る</button>
+<button id="btn-free-stop" type="button" style="background:#6b7280;">やめる</button>
+</div>
+
+
+<!-- 8. 自由練習答え -->
+<div id="free-answer-screen" class="screen">
+<h2>こたえ</h2>
+<div id="free-answer-value" class="big-display" style="color:#10b981;">0</div>
+<button id="btn-free-next" type="button" style="background:#10b981;">次の問題へ</button>
+</div>
+
+
+<!-- 9. 検定プレイ -->
+<div id="exam-play-screen" class="screen">
+<h2 id="exam-play-title">検定中...</h2>
+<div id="exam-question-no" class="big-display">第1問 / 全10問</div>
+<p style="text-align:center;color:#6b7280;" id="exam-rule-info">1題10点</p>
+<div style="margin:20px 0;">
+<label>あなたの答えを入力：</label>
+<input type="number" id="input-user-answer" placeholder="答えを入力してください">
+</div>
+<button id="btn-exam-repeat" type="button">もう一度読み上げる</button>
+<button id="btn-exam-submit" type="button" style="background:#10b981;">答え合わせして次へ</button>
+<button id="btn-exam-stop" type="button" style="background:#6b7280;">やめる</button>
+</div>
+
+
+<!-- ★ 9.5 検定の各問の採点・○×結果画面 -->
+<div id="exam-result-screen" class="screen">
+<h2 id="exam-result-title">採点結果</h2>
+<div class="big-display" id="exam-result-judgement" style="font-size:48px;margin:20px 0;">⭕️</div>
+<p style="text-align:center;font-size:16px;color:var(--text-sub);" id="exam-result-detail">あなたの答え: 120 / 正解: 120</p>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:20px;">
+<button id="btn-exam-next-q" type="button" style="background:var(--success);">次の問題へ進む</button>
+<button id="btn-exam-finish" type="button" style="background:#6b7280;">検定を終わる（メニューへ）</button>
+</div>
+</div>
+
+
+<!-- 10. 結果発表 -->
+<div id="result-screen" class="screen">
+<h2>🎉 結果発表</h2>
+<div style="background:#eff6ff;border:2px solid #3b82f6;padding:15px;border-radius:8px;text-align:center;margin:20px 0;">
+<h3 id="result-score-text" style="font-size:24px;margin:5px 0;">得点: 0点</h3>
+<p id="result-grade-text" style="font-size:20px;font-weight:bold;color:#4f46e5;margin:10px 0;">判定: 合格</p>
+</div>
+<button id="btn-back-to-menu" type="button" style="background:#4f46e5;">メニューに戻る</button>
+</div>
+
+
+<!-- ★ 編集モーダル画面 -->
+<div id="edit-modal" class="modal-overlay">
+  <div class="modal-content">
+    <h3 style="margin-bottom:12px;">✏️ 学習記録の編集</h3>
+    <label style="font-size:13px;font-weight:bold;color:var(--text-sub);">勉強内容：</label>
+    <textarea id="modal-edit-content" rows="3" style="resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button type="button" id="btn-modal-save" style="background:var(--success);margin:0;flex:1;">保存する</button>
+      <button type="button" id="btn-modal-cancel" style="background:#64748b;margin:0;flex:1;">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+
+let currentSchoolId='default-school';
+let currentStudent=null;
+
+let freeQuestions=[],freeIndex=0,freeMode='yomizan';
+let kukuQueue=[],currentKukuIndex=0,kukuScore=0,selectedKukuDan='all';
+let examQueue=[],currentExamIndex=0,userScore=0,activeExamMeta={},activeExamGenre='yomi';
+let editingLogIndex=null;
+
+let speechTimeouts=[];
+const SPEECH_INTERVAL=4000;
+
+function getStorageKey(){
+return 'soroban_students_'+currentSchoolId;
+}
+
+function getStudents(){
+try{
+return JSON.parse(localStorage.getItem(getStorageKey())||'[]');
+}catch(e){return[];}
+}
+
+function saveStudents(list){
+localStorage.setItem(getStorageKey(),JSON.stringify(list));
+}
+
+function showScreen(id){
+stopSpeechSequence();
+document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+let target=document.getElementById(id);
+if(target)target.classList.add('active');
+if(id==='menu-screen')updateRoomDisplay();
+}
+
+function escapeHtml(str){
+return String(str||'')
+.replace(/&/g,'&amp;')
+.replace(/</g,'&lt;')
+.replace(/>/g,'&gt;')
+.replace(/"/g,'&quot;')
+.replace(/'/g,'&#039;');
+}
+
+/* 塾ID・登録 */
+const btnToggleSchool=document.getElementById('btn-toggle-school');
+const schoolBox=document.getElementById('school-box');
+const btnToggleRegister=document.getElementById('btn-toggle-register');
+const registerBox=document.getElementById('register-box');
+
+btnToggleSchool.addEventListener('click',()=>{
+let isOpen=schoolBox.classList.toggle('open');
+btnToggleSchool.textContent=isOpen?'🏫 塾IDの登録・変更を閉じる':'🏫 塾IDの登録・変更を開く';
+if(isOpen){
+registerBox.classList.remove('open');
+btnToggleRegister.textContent='✨ 新しく登録するを開く';
+}
+});
+
+btnToggleRegister.addEventListener('click',()=>{
+let isOpen=registerBox.classList.toggle('open');
+btnToggleRegister.textContent=isOpen?'✨ 新しく登録するを閉じる':'✨ 新しく登録するを開く';
+if(isOpen){
+schoolBox.classList.remove('open');
+btnToggleSchool.textContent='🏫 塾IDの登録・変更を開く';
+}
+});
+
+document.getElementById('btn-change-school').addEventListener('click',()=>{
+let sId=document.getElementById('input-school-id').value.trim();
+if(!sId){
+alert('学校・塾IDを入力してください');
+return;
+}
+currentSchoolId=sId;
+renderStudents();
+schoolBox.classList.remove('open');
+btnToggleSchool.textContent='🏫 塾IDの登録・変更を開く';
+alert(`塾IDを「${currentSchoolId}」に登録・変更しました。`);
+});
+
+window.switchTab=function(tabName){
+document.querySelectorAll('.tab-pane').forEach(el=>el.style.display='none');
+document.querySelectorAll('.tab-row button').forEach(el=>el.classList.remove('active-tab'));
+
+const tabMap={home:'tab-content-home',record:'tab-content-record',ranking:'tab-content-ranking',chat:'tab-content-chat',menu:'tab-content-menu'};
+const target=document.getElementById(tabMap[tabName]);
+if(target)target.style.display='block';
+
+const buttons=document.querySelectorAll('.tab-row button');
+const indexMap={home:0,record:1,ranking:2,chat:3,menu:4};
+if(buttons[indexMap[tabName]])buttons[indexMap[tabName]].classList.add('active-tab');
+
+if(tabName==='record')renderStudyLogs();
+if(tabName==='ranking')renderRanking();
+if(tabName==='chat'){
+renderStudyQuestionContext();
+renderChatPhotoPreview();
+renderChatMessages();
+}
+};
+
+function updateRoomDisplay(){
+if(!currentStudent)return;
+let baseChar=currentStudent.baseChar||'🧒';
+let exp=currentStudent.exp||0;
+let speechText='今日もがんばろう！';
+if(exp>=150)speechText='すごい成長スピードだね！✨';
+else if(exp>=50)speechText='調子が出てきたね！';
+
+document.getElementById('room-char-emoji').childNodes[2].textContent=baseChar;
+document.getElementById('room-char-speech').textContent=speechText;
+
+let plantType=currentStudent.plantType||'tomato';
+let plantExp=currentStudent.plantExp||0;
+let plantEmoji='🌱';
+
+if(plantType==='tomato'){
+if(plantExp===0)plantEmoji='🫘';else if(plantExp<3)plantEmoji='🌱';else if(plantExp<6)plantEmoji='🌿';else if(plantExp<10)plantEmoji='🪴';else plantEmoji='🍅';
+}else if(plantType==='flower'){
+if(plantExp===0)plantEmoji='🫘';else if(plantExp<3)plantEmoji='🌱';else if(plantExp<6)plantEmoji='🌿';else if(plantExp<10)plantEmoji='🌷';else plantEmoji='🌻';
+}else if(plantType==='fruit'){
+if(plantExp===0)plantEmoji='🫘';else if(plantExp<3)plantEmoji='🌱';else if(plantExp<6)plantEmoji='🌿';else if(plantExp<10)plantEmoji='🍒';else plantEmoji='🍓';
+}else{
+if(plantExp===0)plantEmoji='🫘';else if(plantExp<3)plantEmoji='🌱';else if(plantExp<6)plantEmoji='🌿';else plantEmoji='🪴';
+}
+document.getElementById('room-plant-emoji').textContent=plantEmoji;
+}
+
+/* 学習記録 */
+function renderStudyLogs(){
+let listContainer=document.getElementById('study-log-list');
+let logs=currentStudent.studyLogs||[];
+
+if(logs.length===0){
+listContainer.innerHTML='<p style="color:var(--text-sub);">まだきろくはありません。</p>';
+return;
+}
+
+listContainer.innerHTML=logs.map((l,index)=>`
+<div class="card" style="display:block;">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+<span style="font-weight:bold;">📅 ${escapeHtml(l.date)}</span>
+</div>
+<div style="margin-top:7px;word-break:break-all;">${escapeHtml(l.content)}</div>
+<div class="record-buttons">
+<button type="button" class="record-question-btn" onclick="askAboutStudyLog(${index})">💬 この記録について質問</button>
+<button type="button" class="record-edit-btn" onclick="editStudyLog(${index})">✏️ 編集</button>
+<button type="button" class="record-delete-btn" onclick="deleteStudyLog(${index})">🗑️ 削除</button>
+</div>
+</div>
+`).join('');
+}
+
+let selectedStudyLogForChat=null;
+window.askAboutStudyLog=function(index){
+if(!currentStudent)return;
+let logs=currentStudent.studyLogs||[];
+let log=logs[index];
+if(!log)return;
+selectedStudyLogForChat={date:log.date,content:log.content};
+switchTab('chat');
+document.getElementById('input-chat-msg').focus();
+};
+
+window.editStudyLog=function(index){
+if(!currentStudent)return;
+let list=getStudents();
+let target=list.find(s=>s.id===currentStudent.id);
+if(!target||!target.studyLogs)return;
+
+let log=target.studyLogs[index];
+if(!log)return;
+
+editingLogIndex=index;
+document.getElementById('modal-edit-content').value=log.content;
+document.getElementById('edit-modal').classList.add('open');
+};
+
+document.getElementById('btn-modal-save').addEventListener('click',()=>{
+if(editingLogIndex===null||!currentStudent)return;
+let newContent=document.getElementById('modal-edit-content').value.trim();
+if(!newContent){
+alert('勉強内容を入力してください。');
+return;
+}
+
+let list=getStudents();
+let target=list.find(s=>s.id===currentStudent.id);
+if(target&&target.studyLogs&&target.studyLogs[editingLogIndex]){
+target.studyLogs[editingLogIndex].content=newContent;
+saveStudents(list);
+currentStudent=target;
+renderStudyLogs();
+}
+
+document.getElementById('edit-modal').classList.remove('open');
+editingLogIndex=null;
+});
+
+document.getElementById('btn-modal-cancel').addEventListener('click',()=>{
+document.getElementById('edit-modal').classList.remove('open');
+editingLogIndex=null;
+});
+
+window.deleteStudyLog=function(index){
+if(!currentStudent)return;
+let list=getStudents();
+let target=list.find(s=>s.id===currentStudent.id);
+if(!target||!target.studyLogs)return;
+
+let log=target.studyLogs[index];
+if(!log)return;
+
+if(!confirm(`この記録を削除しますか？\n\n${log.date}\n${log.content}`))return;
+
+target.studyLogs.splice(index,1);
+saveStudents(list);
+currentStudent=target;
+renderStudyLogs();
+};
+
+/* ランキング */
+function renderRanking(){
+let rankingContainer=document.getElementById('ranking-list');
+let students=getStudents();
+
+if(students.length===0){
+rankingContainer.innerHTML='<p style="color:var(--text-sub);">ランキングデータがありません。</p>';
+return;
+}
+
+students.sort((a,b)=>(b.exp||0)-(a.exp||0));
+
+rankingContainer.innerHTML=students.map((s,index)=>{
+let rank=index+1;
+let crown='';
+let cardClass='rank-card';
+if(rank===1){crown='👑 ';cardClass+=' top-1';}
+else if(rank===2){crown='🥈 ';cardClass+=' top-2';}
+else if(rank===3){crown='🥉 ';cardClass+=' top-3';}
+let isMe=currentStudent&&s.id===currentStudent.id?' (あなた)':'';
+
+return `
+<div class="${cardClass}">
+<div style="display:flex;align-items:center;gap:8px;">
+<span class="rank-num">${crown}${rank}位</span>
+<span style="font-size:22px;">${s.baseChar||'🧒'}</span>
+<div><strong>${escapeHtml(s.nickname)}</strong><span style="font-size:12px;color:var(--text-sub);">${isMe}</span></div>
+</div>
+<div style="font-weight:bold;color:var(--primary);font-size:15px;">${s.exp||0} EXP</div>
+</div>
+`;
+}).join('');
+}
+
+function renderStudents(){
+let list=getStudents();
+let box=document.getElementById('student-list-box');
+if(!box)return;
+
+if(list.length===0){
+box.innerHTML=`<p style="color:#6b7280;text-align:center;padding:10px;">塾ID「${escapeHtml(currentSchoolId)}」に登録されている生徒がいません。</p>`;
+return;
+}
+
+box.innerHTML=list.map(student=>`
+<div class="card">
+<div><strong>${escapeHtml(student.nickname)}</strong> (${escapeHtml(student.realname||'名前なし')})</div>
+<div style="display:flex;gap:6px;">
+<button class="btn-login" data-id="${student.id}" style="width:auto;padding:8px 14px;margin:0;background:var(--primary);">ログイン</button>
+<button class="btn-delete" data-id="${student.id}" style="width:auto;padding:8px 12px;margin:0;background:#ef4444;font-size:13px;">削除</button>
+</div>
+</div>
+`).join('');
+
+box.querySelectorAll('.btn-login').forEach(btn=>{
+btn.addEventListener('click',function(){
+currentStudent=list.find(s=>s.id===this.getAttribute('data-id'));
+if(currentStudent){
+document.getElementById('welcome-msg').textContent=`${currentStudent.nickname}さんのお部屋`;
+showScreen('menu-screen');
+}
+});
+});
+
+box.querySelectorAll('.btn-delete').forEach(btn=>{
+btn.addEventListener('click',function(){
+let id=this.getAttribute('data-id');
+let student=list.find(s=>s.id===id);
+if(student&&confirm(`${student.nickname}さんを削除しますか？`)){
+saveStudents(list.filter(s=>s.id!==id));
+renderStudents();
+}
+});
+});
+}
+
+document.getElementById('btn-register').addEventListener('click',()=>{
+let realname=document.getElementById('input-realname').value.trim();
+let nickname=document.getElementById('input-nickname').value.trim();
+let baseChar=document.getElementById('input-select-char').value;
+let plantType=document.getElementById('input-select-plant').value;
+
+if(!nickname){
+alert('ニックネームを入力してください');
+return;
+}
+
+let list=getStudents();
+let newS={id:Date.now().toString(),realname,nickname,baseChar,plantType,exp:0,plantExp:0,studyLogs:[],chats:[]};
+list.push(newS);
+saveStudents(list);
+currentStudent=newS;
+
+document.getElementById('input-realname').value='';
+document.getElementById('input-nickname').value='';
+registerBox.classList.remove('open');
+btnToggleRegister.textContent='✨ 新しく登録するを開く';
+document.getElementById('welcome-msg').textContent=`${currentStudent.nickname}さんのお部屋`;
+showScreen('menu-screen');
+});
+
+document.getElementById('btn-logout').addEventListener('click',()=>{
+currentStudent=null;
+selectedStudyLogForChat=null;
+renderStudents();
+showScreen('auth-screen');
+});
+
+document.getElementById('btn-save-study-log').onclick=()=>{
+if(!currentStudent)return;
+let date=document.getElementById('input-my-date').value||new Date().toISOString().slice(0,10);
+let content=document.getElementById('input-my-content').value.trim();
+
+if(!content){
+alert('勉強内容を入力してください');
+return;
+}
+
+let list=getStudents();
+let target=list.find(s=>s.id===currentStudent.id);
+if(!target.studyLogs)target.studyLogs=[];
+target.studyLogs.push({date,content});
+target.plantExp=(target.plantExp||0)+1;
+target.exp=(target.exp||0)+10;
+
+saveStudents(list);
+currentStudent=target;
+document.getElementById('input-my-content').value='';
+alert('💧 記録完了！水やりされて植物が育ち、順位ポイント（EXP）がアップしました！');
+updateRoomDisplay();
+};
+
+/* チャット関連 */
+function getChatStorageKey(){
+return 'soroban_chats_'+currentSchoolId+'_'+(currentStudent?currentStudent.id:'default');
+}
+
+function getMessages(){
+try{
+let data=localStorage.getItem(getChatStorageKey());
+if(!data){
+let initial=[{sender:'teacher',text:`${currentStudent?currentStudent.nickname:'生徒'}さん、こんにちは！今日もそろばんの練習がんばろうね。`}];
+localStorage.setItem(getChatStorageKey(),JSON.stringify(initial));
+return initial;
+}
+return JSON.parse(data);
+}catch(e){return[];}
+}
+
+function saveMessages(msgs){
+localStorage.setItem(getChatStorageKey(),JSON.stringify(msgs));
+}
+
+function renderStudyQuestionContext(){
+const box=document.getElementById('chat-study-context');
+if(!box)return;
+if(!selectedStudyLogForChat){
+box.style.display='none';
+box.innerHTML='';
+return;
+}
+box.style.display='block';
+box.innerHTML=`<strong>📖 質問する学習記録</strong><br>📅 ${escapeHtml(selectedStudyLogForChat.date)}<br>${escapeHtml(selectedStudyLogForChat.content)}`;
+}
+
+function renderChatMessages(){
+const box=document.getElementById('chat-box');
+let msgs=getMessages();
+box.innerHTML=msgs.map(m=>{
+let contextHtml=m.studyLog?`<div style="background:rgba(255,255,255,.55);padding:5px 7px;border-radius:6px;margin-bottom:5px;font-size:11px;">📖 ${escapeHtml(m.studyLog.date)}<br>${escapeHtml(m.studyLog.content)}</div>`:'';
+let photoHtml=m.photo?`<img src="${m.photo}" class="chat-photo-preview" alt="添付写真">`:'';
+return `<div class="chat-bubble ${m.sender}">${contextHtml}${escapeHtml(m.text||'')}${photoHtml}</div>`;
+}).join('');
+box.scrollTop=box.scrollHeight;
+}
+
+let selectedChatPhoto=null;
+function renderChatPhotoPreview(){
+const box=document.getElementById('chat-photo-preview-box');
+if(!box)return;
+if(!selectedChatPhoto){
+box.innerHTML='';
+return;
+}
+box.innerHTML=`<div style="margin-top:8px;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;"><div style="font-size:12px;color:#64748b;margin-bottom:5px;">📷 添付する写真</div><img src="${selectedChatPhoto}" class="chat-photo-preview"><button type="button" onclick="removeChatPhoto()" style="background:#ef4444;width:auto;padding:5px 10px;font-size:12px;margin-top:6px;">写真を取り消す</button></div>`;
+}
+
+window.removeChatPhoto=function(){
+selectedChatPhoto=null;
+document.getElementById('chat-photo-input').value='';
+renderChatPhotoPreview();
+};
+
+document.getElementById('chat-photo-input').addEventListener('change',function(e){
+const file=e.target.files[0];
+if(!file)return;
+if(!file.type.startsWith('image/')){
+alert('写真ファイルを選択してください。');
+return;
+}
+const reader=new FileReader();
+reader.onload=function(event){
+selectedChatPhoto=event.target.result;
+renderChatPhotoPreview();
+};
+reader.readAsDataURL(file);
+});
+
+document.getElementById('btn-send-chat').onclick=sendChatMessage;
+document.getElementById('input-chat-msg').addEventListener('keypress',function(e){
+if(e.key==='Enter')sendChatMessage();
+});
+
+function sendChatMessage(){
+const input=document.getElementById('input-chat-msg');
+const text=input.value.trim();
+if(!text&&!selectedChatPhoto)return;
+
+let msgs=getMessages();
+let message={sender:'student',text:text||'写真を送ります。'};
+if(selectedStudyLogForChat){
+message.studyLog={date:selectedStudyLogForChat.date,content:selectedStudyLogForChat.content};
+}
+if(selectedChatPhoto){
+message.photo=selectedChatPhoto;
+}
+msgs.push(message);
+saveMessages(msgs);
+
+input.value='';
+selectedChatPhoto=null;
+document.getElementById('chat-photo-input').value='';
+renderChatPhotoPreview();
+renderChatMessages();
+
+setTimeout(()=>{
+let reply=getTeacherReply(text);
+let updatedMsgs=getMessages();
+updatedMsgs.push({sender:'teacher',text:reply});
+saveMessages(updatedMsgs);
+renderChatMessages();
+},800);
+}
+
+function getTeacherReply(txt){
+if(txt.includes('合格')||txt.includes('できた')||txt.includes('点')){
+return 'すごいね！その調子でどんどん検定や練習をクリアしていこう！';
+}else if(txt.includes('むずかしい')||txt.includes('難しい')||txt.includes('わからない')){
+return '難しい問題は、写真を見ながら一つずつ確認していこうね。どこが分からないか教えてね！';
+}else{
+return 'なるほど！学習記録についての質問も大丈夫だよ。写真を送ってくれたら、一緒に確認しようね。';
+}
+}
+
+/* 九九、音声、問題作成などの機能 */
+document.getElementById('btn-goto-kuku').addEventListener('click',()=>showScreen('kuku-select-screen'));
+document.getElementById('btn-kuku-back').addEventListener('click',()=>showScreen('menu-screen'));
+document.getElementById('btn-start-kuku-play').addEventListener('click',()=>{
+selectedKukuDan=document.getElementById('kuku-dan-select').value;
+buildKukuQuestions();
+currentKukuIndex=0;
+kukuScore=0;
+startKukuQuestion();
+});
+
+function buildKukuQuestions(){
+kukuQueue=[];
+for(let i=0;i<10;i++){
+let dan=selectedKukuDan==='all'?Math.floor(Math.random()*9)+1:parseInt(selectedKukuDan);
+let n=Math.floor(Math.random()*9)+1;
+kukuQueue.push({dan,n,answer:dan*n});
+}
+}
+
+function startKukuQuestion(){
+showScreen('kuku-play-screen');
+document.getElementById('kuku-question-no').textContent=`第 ${currentKukuIndex+1} 問 / 全 10 問`;
+let q=kukuQueue[currentKukuIndex];
+document.getElementById('kuku-display-text').textContent=`${q.dan} × ${q.n} = ?`;
+document.getElementById('input-kuku-answer').value='';
+speakSingle(`${q.dan}かける${q.n}は？`);
+}
+
+document.getElementById('btn-kuku-submit').addEventListener('click',()=>{
+window.speechSynthesis.cancel();
+let userAns=parseInt(document.getElementById('input-kuku-answer').value);
+let correctAns=kukuQueue[currentKukuIndex].answer;
+if(!isNaN(userAns)&&userAns===correctAns)kukuScore+=10;
+currentKukuIndex++;
+if(currentKukuIndex<kukuQueue.length)startKukuQuestion();
+else showKukuResultScreen();
+});
+
+function showKukuResultScreen(){
+showScreen('result-screen');
+let isPass=kukuScore>=70;
+document.getElementById('result-score-text').textContent=`九九特訓得点: ${kukuScore}点 / 100点満点`;
+document.getElementById('result-grade-text').textContent=isPass?'🌟 よくできました！大正解！':'💪 もう一度練習してみよう！';
+if(isPass&&currentStudent){
+let list=getStudents();
+let target=list.find(s=>s.id===currentStudent.id);
+target.exp=(target.exp||0)+20;
+saveStudents(list);
+currentStudent=target;
+}
+}
+
+document.getElementById('btn-kuku-stop').addEventListener('click',()=>{
+stopSpeechSequence();
+showScreen('menu-screen');
+});
+
+function stopSpeechSequence(){
+speechTimeouts.forEach(id=>clearTimeout(id));
+speechTimeouts=[];
+if('speechSynthesis'in window)window.speechSynthesis.cancel();
+}
+
+function speakSingle(text){
+stopSpeechSequence();
+if(!('speechSynthesis'in window))return;
+let uttr=new SpeechSynthesisUtterance(text);
+uttr.lang='ja-JP';
+uttr.rate=1.0;
+window.speechSynthesis.speak(uttr);
+}
+
+function speakQuestion(q){
+stopSpeechSequence();
+if(!('speechSynthesis'in window))return;
+let phrases=[];
+q.nums.forEach((n,i)=>{
+const isLast=i===q.nums.length-1;
+if(i===0){phrases.push(n+(isLast?'円では':'円なり'));return;}
+const isSub=q.ops[i]==='sub';
+const prevIsSub=q.ops[i-1]==='sub';
+if(isSub){
+if(prevIsSub)phrases.push(n+(isLast?'円では':'円なり'));
+else phrases.push('引いては、'+n+(isLast?'円では':'円なり'));
+}else{
+if(prevIsSub)phrases.push('加えて、'+n+(isLast?'円では':'円なり'));
+else phrases.push(n+(isLast?'円では':'円なり'));
+}
+});
+
+phrases.forEach((phrase,index)=>{
+let timeoutId=setTimeout(()=>{
+if(!('speechSynthesis'in window))return;
+let text=phrase;
+if(index===0)text='ねがいましては、'+phrase;
+let uttr=new SpeechSynthesisUtterance(text);
+uttr.lang='ja-JP';
+uttr.rate=1.0;
+window.speechSynthesis.speak(uttr);
+},index*SPEECH_INTERVAL);
+speechTimeouts.push(timeoutId);
+});
+}
+
+function randomInt(min,max){
+return Math.floor(Math.random()*(max-min+1))+min;
+}
+
+function generateNumByRange(minDigits,maxDigits,exactDigits=0){
+let d=exactDigits>0?exactDigits:randomInt(minDigits,maxDigits);
+return randomInt(Math.pow(10,d-1),Math.pow(10,d)-1);
+}
+
+function createQuestionWithPattern(minD,maxD,count,subtractionPositions,exactD=0){
+let nums=[],ops=[],answer=0;
+for(let i=0;i<count;i++){
+let n;
+let isSub=subtractionPositions.includes(i);
+if(isSub){
+let minAllowed=exactD>0?Math.pow(10,exactD-1):Math.pow(10,minD-1);
+let maxAllowed=exactD>0?Math.pow(10,exactD)-1:Math.pow(10,maxD)-1;
+let upper=Math.min(maxAllowed,answer);
+if(upper<minAllowed){
+let possibleDigits=Math.floor(Math.log10(Math.max(1,answer)))+1;
+let useDigits=Math.min(possibleDigits,exactD>0?exactD:maxD);
+let low=Math.pow(10,Math.max(0,useDigits-1));
+let high=Math.min(answer,Math.pow(10,useDigits)-1);
+n=high>=low?randomInt(low,high):1;
+}else{
+n=randomInt(minAllowed,upper);
+}
+ops.push('sub');
+answer-=n;
+}else{
+n=generateNumByRange(minD,maxD,exactD);
+ops.push('add');
+answer+=n;
+}
+nums.push(n);
+}
+return{nums,ops,answer};
+}
+
+function createExactQuestion(minD,maxD,count,exactD=0,forceSubtraction=false,consecutiveSubtractions=false){
+if(forceSubtraction){
+let possibleStart=[];
+for(let p=1;p<count-1;p++)possibleStart.push(p);
+let start=possibleStart[randomInt(0,possibleStart.length-1)];
+let positions=consecutiveSubtractions?[start,start+1]:[start];
+return createQuestionWithPattern(minD,maxD,count,positions,exactD);
+}
+let nums=[],ops=[],answer=0;
+for(let i=0;i<count;i++){
+let n=generateNumByRange(minD,maxD,exactD);
+nums.push(n);
+ops.push('add');
+answer+=n;
+}
+return{nums,ops,answer};
+}
+
+document.getElementById('btn-goto-free-read').addEventListener('click',()=>{
+freeMode='yomizan';
+document.getElementById('setup-title').textContent='🧮 読上算 自由練習設定';
+showScreen('setup-screen');
+});
+
+document.getElementById('btn-goto-free-anzan').addEventListener('click',()=>{
+freeMode='anzan';
+document.getElementById('setup-title').textContent='🧠 読上暗算 自由練習設定';
+showScreen('setup-screen');
+});
+
+document.getElementById('btn-setup-back').addEventListener('click',()=>showScreen('menu-screen'));
+
+document.getElementById('btn-start-free-play').addEventListener('click',()=>{
+let minD=parseInt(document.getElementById('input-min-digit').value)||1;
+let maxD=parseInt(document.getElementById('input-max-digit').value)||2;
+let count=parseInt(document.getElementById('input-count').value)||5;
+if(minD>maxD){
+alert('最小桁数は最大桁数以下にしてください。');
+return;
+}
+freeQuestions=[];
+for(let q=0;q<5;q++){
+let nums=[],ops=[],answer=0;
+for(let i=0;i<count;i++){
+let n=generateNumByRange(minD,maxD);
+let op='add';
+if(i>0&&Math.random()<.2&&answer-n>=0){
+op='sub';
+answer-=n;
+}else{
+answer+=n;
+}
+nums.push(n);
+ops.push(op);
+}
+freeQuestions.push({nums,ops,answer});
+}
+freeIndex=0;
+startFreeQuestion();
+});
+
+function startFreeQuestion(){
+showScreen('free-play-screen');
+document.getElementById('free-play-title').textContent=freeMode==='anzan'?'🧠 読上暗算（自由練習）':'🧮 読上算（自由練習）';
+document.getElementById('free-question-no').textContent=`第 ${freeIndex+1} 問`;
+speakQuestion(freeQuestions[freeIndex]);
+}
+
+document.getElementById('btn-free-repeat').addEventListener('click',()=>speakQuestion(freeQuestions[freeIndex]));
+document.getElementById('btn-free-answer').addEventListener('click',()=>{
+stopSpeechSequence();
+document.getElementById('free-answer-value').textContent=freeQuestions[freeIndex].answer;
+showScreen('free-answer-screen');
+});
+
+document.getElementById('btn-free-next').addEventListener('click',()=>{
+freeIndex++;
+if(freeIndex<freeQuestions.length)startFreeQuestion();
+else{
+alert('すべての問題が終了しました！お疲れ様でした！');
+showScreen('menu-screen');
+}
+});
+document.getElementById('btn-free-stop').addEventListener('click',()=>showScreen('menu-screen'));
+
+document.getElementById('btn-goto-exam-yomi').addEventListener('click',()=>{
+activeExamGenre='yomi';
+setupExamSelectScreen();
+showScreen('exam-select-screen');
+});
+
+document.getElementById('btn-goto-exam-anzan').addEventListener('click',()=>{
+activeExamGenre='anzan';
+setupExamSelectScreen();
+showScreen('exam-select-screen');
+});
+
+document.getElementById('btn-exam-back').addEventListener('click',()=>showScreen('menu-screen'));
+const examGradeSelect=document.getElementById('exam-grade-select');
+
+function setupExamSelectScreen(){
+const titleEl=document.getElementById('exam-select-title');
+examGradeSelect.innerHTML='';
+if(activeExamGenre==='yomi'){
+titleEl.textContent='🏆 本格検定：読上算モード選択';
+examGradeSelect.innerHTML=`
+<optgroup label="【高レベル】上位グループ">
+<option value="yomi_dan6_10">7〜16桁(10口ベース)（10段〜6段レベル）</option>
+<option value="yomi_dan_sub_5">7〜12桁(10口ベース)（5段〜準初段レベル）</option>
+</optgroup>
+<optgroup label="【一般レベル】標準グループ">
+<option value="yomi_kyu_1">5〜10桁(10口)</option>
+<option value="yomi_kyu_2">5〜8桁(10口)</option>
+<option value="yomi_kyu_3">3〜6桁(10口)</option>
+<option value="yomi_kyu_4">3〜5桁(10口)</option>
+<option value="yomi_kyu_5">3〜4桁(10口)</option>
+<option value="yomi_kyu_6">2〜3桁(10口)</option>
+</optgroup>
+`;
+}else{
+titleEl.textContent='🏆 本格検定：読上暗算モード選択';
+examGradeSelect.innerHTML=`
+<optgroup label="【高レベル】上位グループ">
+<option value="anzan_dan6_10">3〜10桁(10口ベース)（10段〜6段レベル）</option>
+<option value="anzan_dan_sub_5">3〜5桁(10口ベース)（5段〜準初段レベル）</option>
+</optgroup>
+<optgroup label="【一般レベル】標準グループ">
+<option value="anzan_kyu_1">3〜4桁(10口)</option>
+<option value="anzan_kyu_2">2〜3桁(10口)</option>
+<option value="anzan_kyu_3">2桁揃い(10口)</option>
+<option value="anzan_kyu_4">2桁揃い(7口)</option>
+<option value="anzan_kyu_5">1〜2桁(5口)</option>
+<option value="anzan_kyu_6">1桁揃い(7口)</option>
+</optgroup>
+`;
+}
+}
+
+document.getElementById('btn-start-exam').addEventListener('click',()=>{
+buildExactExam(examGradeSelect.value);
+currentExamIndex=0;
+userScore=0;
+startExamQuestion();
+});
+
+function buildExactExam(gradeKey){
+examQueue=[];
+let config={};
+let genreLabel=activeExamGenre==='yomi'?'🧮 読上算':'🧠 読上暗算';
+
+if(gradeKey==='yomi_dan6_10'){
+let specs=[{minD:7,maxD:13,count:10,numQ:4},{minD:7,maxD:14,count:10,numQ:4},{minD:7,maxD:15,count:10,numQ:4},{minD:7,maxD:16,count:10,numQ:3}];
+specs.forEach(s=>{for(let i=0;i<s.numQ;i++)examQueue.push(Object.assign(createExactQuestion(s.minD,s.maxD,s.count),{genre:genreLabel}));});
+config={total:15,maxScore:150,passScores:{'10段(140点以上)':140,'9段(120点以上)':120,'8段(100点以上)':100,'7段(80点以上)':80,'6段(60点以上)':60}};
+}else if(gradeKey==='anzan_dan6_10'){
+let specs=[{minD:3,maxD:6,count:10,numQ:3},{minD:4,maxD:7,count:10,numQ:3},{minD:5,maxD:8,count:10,numQ:3},{minD:5,maxD:9,count:10,numQ:3},{minD:5,maxD:10,count:10,numQ:3}];
+specs.forEach(s=>{for(let i=0;i<s.numQ;i++)examQueue.push(Object.assign(createExactQuestion(s.minD,s.maxD,s.count),{genre:genreLabel}));});
+config={total:15,maxScore:150,passScores:{'10段(140点以上)':140,'9段(120点以上)':120,'8段(100点以上)':100,'7段(80点以上)':80,'6段(60点以上)':60}};
+}else if(gradeKey==='yomi_dan_sub_5'){
+let specs=[{minD:7,maxD:10,count:10,numQ:5},{minD:7,maxD:11,count:10,numQ:5},{minD:7,maxD:12,count:10,numQ:5}];
+specs.forEach(s=>{for(let i=0;i<s.numQ;i++)examQueue.push(Object.assign(createExactQuestion(s.minD,s.maxD,s.count),{genre:genreLabel}));});
+config={total:15,maxScore:150,passScores:{'5段(140点以上)':140,'4段(130点以上)':130,'3段(120点以上)':120,'準3段(110点以上)':110,'2段(100点以上)':100,'準2段(90点以上)':90,'初段(80点以上)':80,'準初段(70点以上)':70}};
+}else if(gradeKey==='anzan_dan_sub_5'){
+let specs=[{minD:3,maxD:4,count:10,numQ:4},{minD:4,maxD:4,count:10,numQ:4,exactD:4},{minD:3,maxD:5,count:10,numQ:4},{minD:3,maxD:5,count:10,numQ:3}];
+specs.forEach(s=>{for(let i=0;i<s.numQ;i++)examQueue.push(Object.assign(createExactQuestion(s.minD,s.maxD,s.count,s.exactD||0),{genre:genreLabel}));});
+config={total:15,maxScore:150,passScores:{'5段(140点以上)':140,'4段(130点以上)':130,'3段(120点以上)':120,'準3段(110点以上)':110,'2段(100点以上)':100,'準2段(90点以上)':90,'初段(80点以上)':80,'準初段(70点以上)':70}};
+}else{
+let parts=gradeKey.split('_');
+let gradeNum=parts[parts.length-1];
+let yMin=3,yMax=5,yCnt=10;
+let aMin=2,aMax=3,aCnt=10,aExact=0;
+
+if(activeExamGenre==='yomi'){
+if(gradeNum==='1'){yMin=5;yMax=10;yCnt=10}
+else if(gradeNum==='2'){yMin=5;yMax=8;yCnt=10}
+else if(gradeNum==='3'){yMin=3;yMax=6;yCnt=10}
+else if(gradeNum==='4'){yMin=3;yMax=5;yCnt=10}
+else if(gradeNum==='5'){yMin=3;yMax=4;yCnt=10}
+else if(gradeNum==='6'){yMin=2;yMax=3;yCnt=10}
+
+let qNums=[2,4,7,9],cNums=[4,7];
+for(let i=0;i<10;i++){
+examQueue.push(Object.assign(createExactQuestion(yMin,yMax,yCnt,0,qNums.includes(i),cNums.includes(i)),{genre:genreLabel}));
+}
+}else{
+if(gradeNum==='1'){aMin=3;aMax=4;aCnt=10}
+else if(gradeNum==='2'){aMin=2;aMax=3;aCnt=10}
+else if(gradeNum==='3'){aMin=2;aMax=2;aExact=2;aCnt=10}
+else if(gradeNum==='4'){aMin=2;aMax=2;aExact=2;aCnt=7}
+else if(gradeNum==='5'){aMin=1;aMax=2;aCnt=5}
+else if(gradeNum==='6'){aMin=1;aMax=1;aExact=1;aCnt=7}
+
+let qNums=[2,4,7,9],cNums=[4,7];
+for(let i=0;i<10;i++){
+examQueue.push(Object.assign(createExactQuestion(aMin,aMax,aCnt,aExact,qNums.includes(i),cNums.includes(i)),{genre:genreLabel}));
+}
+}
+config={total:10,maxScore:100,passScore:gradeNum==='1'?80:70,gradeName:'このレベル'};
+}
+activeExamMeta=config;
+}
+
+function startExamQuestion(){
+showScreen('exam-play-screen');
+let q=examQueue[currentExamIndex];
+document.getElementById('exam-play-title').textContent=`${q.genre} 検定中`;
+document.getElementById('exam-question-no').textContent=`第 ${currentExamIndex+1} 問 / 全 ${examQueue.length} 問`;
+document.getElementById('exam-rule-info').textContent='1題10点';
+document.getElementById('input-user-answer').value='';
+speakQuestion(q);
+}
+
+document.getElementById('btn-exam-repeat').addEventListener('click',()=>speakQuestion(examQueue[currentExamIndex]));
+document.getElementById('btn-exam-submit').addEventListener('click',()=>{
+stopSpeechSequence();
+const userAns=parseInt(document.getElementById('input-user-answer').value);
+const q=examQueue[currentExamIndex];
+const correctAns=q.answer;
+const isCorrect=!isNaN(userAns)&&userAns===correctAns;
+
+if(isCorrect)userScore+=10;
+
+// ○×結果画面を表示
+showScreen('exam-result-screen');
+document.getElementById('exam-result-judgement').textContent=isCorrect?'⭕️ 正解！':'❌ 残念…';
+document.getElementById('exam-result-judgement').style.color=isCorrect?'var(--success)':'#ef4444';
+document.getElementById('exam-result-detail').textContent=`あなたの答え: ${isNaN(userAns)?'未入力':userAns} ／ 正解: ${correctAns}`;
+
+let nextBtn=document.getElementById('btn-exam-next-q');
+if(currentExamIndex+1<examQueue.length){
+nextBtn.textContent='次の問題へ進む';
+nextBtn.onclick=function(){
+currentExamIndex++;
+startExamQuestion();
+};
+}else{
+nextBtn.textContent='結果発表を見る';
+nextBtn.onclick=function(){
+showExamResultScreen();
+};
+}
+
+document.getElementById('btn-exam-finish').onclick=function(){
+showScreen('menu-screen');
+};
+});
+
+document.getElementById('btn-exam-stop').addEventListener('click',()=>{
+stopSpeechSequence();
+showScreen('menu-screen');
+});
+
+function showExamResultScreen(){
+showScreen('result-screen');
+let meta=activeExamMeta;
+let gradeResultText='';
+
+if(meta.passScores){
+let achieved='不合格';
+let sortedRanks=Object.keys(meta.passScores);
+for(let r of sortedRanks){
+if(userScore>=meta.passScores[r]){
+achieved=r+' 達成！';
+break;
+}
+}
+gradeResultText=`判定: ${achieved}`;
+}else{
+let isPass=userScore>=meta.passScore;
+gradeResultText=isPass?`🌟 合格おめでとう！（合格点: ${meta.passScore}点）`:`❌ 不合格（合格点: ${meta.passScore}点）`;
+}
+
+document.getElementById('result-score-text').textContent=`得点: ${userScore}点 / ${meta.maxScore}点満点`;
+document.getElementById('result-grade-text').textContent=gradeResultText;
+
+if(currentStudent&&userScore>=70){
+let list=getStudents();
+let target=list.find(s=>s.id===currentStudent.id);
+target.exp=(target.exp||0)+50;
+saveStudents(list);
+currentStudent=target;
+}
+}
+
+document.getElementById('btn-back-to-menu').addEventListener('click',()=>showScreen('menu-screen'));
+
+let todayStr=new Date().toISOString().slice(0,10);
+let dateInput=document.getElementById('input-my-date');
+if(dateInput)dateInput.value=todayStr;
+
+renderStudents();
+});
+</script>
+
+</body>
+</html>
